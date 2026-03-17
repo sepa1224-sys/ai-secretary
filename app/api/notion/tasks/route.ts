@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getNotionTasks, getNotionDatabases } from "@/lib/notion";
+import { getNotionTasks, getNotionDatabases, findTaskDatabase } from "@/lib/notion";
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,17 +15,23 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const databaseId =
+    let databaseId =
       searchParams.get("databaseId") || process.env.NOTION_DATABASE_ID;
 
+    // データベースIDが未設定の場合、自動特定を試みる
     if (!databaseId) {
-      // データベースIDが未設定の場合、利用可能なデータベース一覧を返す
-      const databases = await getNotionDatabases();
-      return NextResponse.json({
-        databases,
-        message:
-          "NOTION_DATABASE_ID が設定されていません。上記のデータベースIDを環境変数に設定してください。",
-      });
+      console.log("Database ID not set, attempting to auto-detect...");
+      databaseId = await findTaskDatabase();
+      
+      if (!databaseId) {
+        // 自動特定に失敗した場合、利用可能なデータベース一覧を返す
+        const databases = await getNotionDatabases();
+        return NextResponse.json({
+          databases,
+          message:
+            "タスクデータベースが見つかりません。NOTION_DATABASE_ID を環境変数に設定するか、Notionでタスク関連のデータベースを作成してください。",
+        });
+      }
     }
 
     const tasks = await getNotionTasks(databaseId);
@@ -33,11 +39,23 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     console.error("Notion tasks API error:", error);
     
-    // エラーの詳細をログ出力
+    // 404エラーの場合、自動特定を試みる
     if (error.status === 404) {
+      console.log("Database not found, attempting auto-detection...");
+      try {
+        const autoDetectedId = await findTaskDatabase();
+        if (autoDetectedId) {
+          console.log(`Auto-detected database: ${autoDetectedId}`);
+          const tasks = await getNotionTasks(autoDetectedId);
+          return NextResponse.json({ tasks });
+        }
+      } catch (autoDetectError) {
+        console.error("Auto-detection failed:", autoDetectError);
+      }
+      
       return NextResponse.json(
         { 
-          error: "Notionデータベースが見つかりません。データベースIDが正しいか、インテグレーションが接続されているか確認してください。",
+          error: "Notionデータベースが見つかりません。インテグレーションがデータベースに接続されているか確認してください。",
           details: error.message
         },
         { status: 404 }

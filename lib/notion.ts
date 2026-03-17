@@ -358,3 +358,35 @@ export async function getAIMemories(
     throw error;
   }
 }
+
+
+// 自動データベース特定機能
+export async function findTaskDatabase(): Promise<string | null> {
+  try {
+    const databases = await getNotionDatabases();
+    
+    // タスク関連のキーワードを含むデータベースを探す
+    const taskKeywords = ["task", "タスク", "todo", "やることリスト", "project", "プロジェクト"];
+    
+    for (const db of databases) {
+      const titleLower = db.title.toLowerCase();
+      for (const keyword of taskKeywords) {
+        if (titleLower.includes(keyword.toLowerCase())) {
+          console.log(`Found task database: ${db.title} (ID: ${db.id})`);
+          return db.id;
+        }
+      }
+    }
+    
+    // キーワードマッチがない場合、最初のデータベースを返す
+    if (databases.length > 0) {
+      console.log(`No task keyword match, using first database: ${databases[0].title} (ID: ${databases[0].id})`);
+      return databases[0].id;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Failed to find task database:", error);
+    return null;
+  }
+}
