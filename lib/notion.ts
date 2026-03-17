@@ -264,3 +264,97 @@ export async function getNotionDatabases(): Promise<any[]> {
     throw error;
   }
 }
+
+
+export interface AIMemory {
+  id: string;
+  content: string;
+  category: string;
+  createdAt: string;
+  url: string;
+}
+
+export async function saveAIMemory(
+  databaseId: string,
+  content: string,
+  category: string = "learning"
+): Promise<AIMemory> {
+  try {
+    const response = await notion.pages.create({
+      parent: { database_id: databaseId },
+      properties: {
+        Title: {
+          title: [
+            {
+              text: {
+                content: content.substring(0, 100),
+              },
+            },
+          ],
+        },
+        Content: {
+          rich_text: [
+            {
+              text: {
+                content: content,
+              },
+            },
+          ],
+        },
+        Category: {
+          select: {
+            name: category,
+          },
+        },
+      },
+    }) as any;
+
+    return {
+      id: response.id,
+      content,
+      category,
+      createdAt: response.created_time,
+      url: response.url,
+    };
+  } catch (error) {
+    console.error("Failed to save AI memory:", error);
+    throw error;
+  }
+}
+
+export async function getAIMemories(
+  databaseId: string,
+  limit: number = 10
+): Promise<AIMemory[]> {
+  try {
+    const response = await notion.databases.query({
+      database_id: databaseId,
+      sorts: [
+        {
+          property: "Created",
+          direction: "descending",
+        },
+      ],
+      page_size: limit,
+    });
+
+    return response.results.map((page: any) => {
+      const properties = page.properties;
+      const contentProp = properties.Content || properties.内容;
+      const content = contentProp?.rich_text?.[0]?.plain_text || "";
+      const categoryProp = properties.Category || properties.カテゴリ;
+      const category = categoryProp?.select?.name || "learning";
+
+      return {
+        id: page.id,
+        content,
+        category,
+        createdAt: page.created_time,
+        url: page.url,
+      };
+    });
+  } catch (error) {
+    console.error("Failed to fetch AI memories:", error);
+    throw error;
+  }
+}

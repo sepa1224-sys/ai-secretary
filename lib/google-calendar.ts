@@ -141,6 +141,20 @@ export async function createCalendarEvent(
   };
 }
 
+export async function deleteCalendarEvent(
+  accessToken: string,
+  eventId: string,
+  calendarId: string = "primary"
+): Promise<void> {
+  const auth = getOAuth2Client(accessToken);
+  const calendar = google.calendar({ version: "v3", auth });
+
+  await calendar.events.delete({
+    calendarId,
+    eventId,
+  });
+}
+
 export function formatEventForDisplay(event: CalendarEvent): string {
   const start = new Date(event.start);
   const end = new Date(event.end);

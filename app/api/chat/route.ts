@@ -5,11 +5,14 @@ import { anthropic, SYSTEM_PROMPT, CALENDAR_TOOLS } from "@/lib/claude";
 import {
   getCalendarEvents,
   createCalendarEvent,
+  deleteCalendarEvent,
 } from "@/lib/google-calendar";
 import {
   getNotionTasks,
   createNotionTask,
   searchNotionPages,
+  saveAIMemory,
+  getAIMemories,
 } from "@/lib/notion";
 
 export const maxDuration = 60;
@@ -180,6 +183,79 @@ export async function POST(req: NextRequest) {
                 pages,
                 count: pages.length,
               };
+              break;
+            }
+
+            case "delete_calendar_event": {
+              const input = toolUse.input as {
+                eventId: string;
+                calendarId?: string;
+              };
+              const result = await deleteCalendarEvent(
+                session.accessToken!,
+                input.eventId,
+                input.calendarId
+              );
+              toolResult = {
+                success: true,
+                message: "予定を削除しました。",
+              };
+              break;
+            }
+
+            case "save_ai_memory": {
+              const input = toolUse.input as {
+                content: string;
+                category?: string;
+                databaseId?: string;
+              };
+              const databaseId =
+                input.databaseId || process.env.NOTION_DATABASE_ID || "";
+
+              if (!databaseId) {
+                toolResult = {
+                  success: false,
+                  error: "Notion データベースIDが設定されていません。",
+                };
+              } else {
+                const memory = await saveAIMemory(
+                  databaseId,
+                  input.content,
+                  input.category || "learning"
+                );
+                toolResult = {
+                  success: true,
+                  memory,
+                  message: "情報を記憶に保存しました。",
+                };
+              }
+              break;
+            }
+
+            case "get_ai_memories": {
+              const input = toolUse.input as {
+                databaseId?: string;
+                limit?: number;
+              };
+              const databaseId =
+                input.databaseId || process.env.NOTION_DATABASE_ID || "";
+
+              if (!databaseId) {
+                toolResult = {
+                  success: false,
+                  error: "Notion データベースIDが設定されていません。",
+                };
+              } else {
+                const memories = await getAIMemories(
+                  databaseId,
+                  input.limit || 10
+                );
+                toolResult = {
+                  success: true,
+                  memories,
+                  count: memories.length,
+                };
+              }
               break;
             }
 
