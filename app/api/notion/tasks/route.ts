@@ -32,8 +32,33 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ tasks });
   } catch (error: any) {
     console.error("Notion tasks API error:", error);
+    
+    // エラーの詳細をログ出力
+    if (error.status === 404) {
+      return NextResponse.json(
+        { 
+          error: "Notionデータベースが見つかりません。データベースIDが正しいか、インテグレーションが接続されているか確認してください。",
+          details: error.message
+        },
+        { status: 404 }
+      );
+    }
+    
+    if (error.status === 403) {
+      return NextResponse.json(
+        { 
+          error: "Notionへのアクセス権限がありません。インテグレーションがデータベースに接続されているか確認してください。",
+          details: error.message
+        },
+        { status: 403 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: error.message || "タスクの取得中にエラーが発生しました。" },
+      { 
+        error: error.message || "タスクの取得中にエラーが発生しました。",
+        status: error.status
+      },
       { status: 500 }
     );
   }
