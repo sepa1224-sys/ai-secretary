@@ -104,7 +104,8 @@ export function ChatWindow() {
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    // IME確定中（isComposing）はEnterキーを無視する
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       sendMessage(input);
     }
@@ -116,6 +117,14 @@ export function ChatWindow() {
     const textarea = e.target;
     textarea.style.height = "auto";
     textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+  };
+
+  const handleCompositionStart = () => {
+    // IME入力開始時の処理（必要に応じて）
+  };
+
+  const handleCompositionEnd = () => {
+    // IME入力終了時の処理（必要に応じて）
   };
 
   return (
@@ -140,6 +149,8 @@ export function ChatWindow() {
             value={input}
             onChange={handleTextareaChange}
             onKeyDown={handleKeyDown}
+            onCompositionStart={handleCompositionStart}
+            onCompositionEnd={handleCompositionEnd}
             placeholder={
               session
                 ? "メッセージを入力... (Enter送信 / Shift+Enter改行)"
